@@ -1,6 +1,6 @@
 # =========================================================
 # QUESTION 5(a): Interactive Emergency Network Simulator
-# FINAL POLISHED VERSION (EXAM READY)
+# FINAL EXAM-READY VERSION
 # =========================================================
 
 import tkinter as tk
@@ -54,9 +54,9 @@ class EmergencyNetworkSimulator:
         ttk.Label(control, text="Network Editing",
                   font=("Arial", 11, "bold")).pack(pady=5)
 
-        ttk.Button(control, text="Create Node",
+        ttk.Button(control, text="Create city",
                    command=self.create_node).pack(fill=tk.X)
-        ttk.Button(control, text="Delete Node",
+        ttk.Button(control, text="Delete city",
                    command=self.delete_node).pack(fill=tk.X)
 
         ttk.Separator(control).pack(fill=tk.X, pady=5)
@@ -75,6 +75,8 @@ class EmergencyNetworkSimulator:
                    command=self.show_mst).pack(fill=tk.X)
         ttk.Button(control, text="Reliable Path (Dijkstra)",
                    command=self.reliable_path).pack(fill=tk.X)
+        ttk.Button(control, text="Optimize Command Hierarchy (BFS)",
+                   command=self.command_hierarchy_optimizer).pack(fill=tk.X)
 
         ttk.Separator(control).pack(fill=tk.X, pady=5)
 
@@ -119,7 +121,7 @@ class EmergencyNetworkSimulator:
         self.status.set("Network reset to initial state")
 
     # -------------------------------------------------
-    # ACTIVE GRAPH (EXCLUDES FAILED NODES)
+    # ACTIVE GRAPH
     # -------------------------------------------------
     def active_graph(self):
         H = self.G.copy()
@@ -160,29 +162,14 @@ class EmergencyNetworkSimulator:
                 ax=self.ax
             )
 
-        # Legend
-        legend_text = (
-            "Legend:\n"
-            "Blue: Active Node\n"
-            "Red: Failed Node\n"
-            "Green Edge: Path / MST"
-        )
-        self.ax.text(
-            0.01, 0.01, legend_text,
-            transform=self.ax.transAxes,
-            fontsize=9,
-            verticalalignment="bottom",
-            bbox=dict(boxstyle="round", facecolor="white", alpha=0.8)
-        )
-
         self.ax.set_title(title)
         self.canvas.draw()
 
     # -------------------------------------------------
-    # CREATE NODE
+    # NODE & EDGE OPERATIONS
     # -------------------------------------------------
     def create_node(self):
-        node = simpledialog.askstring("Create Node", "Enter node name:")
+        node = simpledialog.askstring("Add City", "Enter city name:")
         if not node or node in self.G:
             messagebox.showerror("Error", "Invalid or duplicate node.")
             return
@@ -195,11 +182,7 @@ class EmergencyNetworkSimulator:
         self.G.add_edge(node, random.choice(existing), weight=random.randint(1, 10))
 
         self.draw_graph(f"Node {node} Added")
-        self.status.set(f"Node {node} created")
 
-    # -------------------------------------------------
-    # DELETE NODE
-    # -------------------------------------------------
     def delete_node(self):
         node = simpledialog.askstring("Delete Node", "Enter node name:")
         if node not in self.G:
@@ -212,65 +195,34 @@ class EmergencyNetworkSimulator:
         self.failed_nodes.discard(node)
 
         self.draw_graph(f"Node {node} Deleted")
-        self.status.set(f"Node {node} deleted")
 
-    # -------------------------------------------------
-    # ADD ROAD
-    # -------------------------------------------------
     def add_road(self):
-        u = simpledialog.askstring("Add Road", "Enter source node:")
-        v = simpledialog.askstring("Add Road", "Enter destination node:")
-        w = simpledialog.askinteger("Add Road", "Enter road weight:")
+        u = simpledialog.askstring("Add Road", "Source node:")
+        v = simpledialog.askstring("Add Road", "Destination node:")
+        w = simpledialog.askinteger("Add Road", "Weight:")
 
-        if not u or not v or w is None:
-            return
+        if u in self.G and v in self.G and w:
+            self.G.add_edge(u, v, weight=w)
+            self.draw_graph(f"Road added {u} ↔ {v}")
 
-        if u not in self.G or v not in self.G:
-            messagebox.showerror("Error", "Both nodes must exist.")
-            return
-
-        self.G.add_edge(u, v, weight=w)
-        self.draw_graph(f"Road added between {u} and {v}")
-        self.status.set(f"Road added: {u} ↔ {v}")
-
-    # -------------------------------------------------
-    # REMOVE ROAD
-    # -------------------------------------------------
     def remove_road(self):
-        u = simpledialog.askstring("Remove Road", "Enter source node:")
-        v = simpledialog.askstring("Remove Road", "Enter destination node:")
+        u = simpledialog.askstring("Remove Road", "Source node:")
+        v = simpledialog.askstring("Remove Road", "Destination node:")
 
-        if not self.G.has_edge(u, v):
-            messagebox.showerror("Error", "Road does not exist.")
-            return
-
-        self.G.remove_edge(u, v)
-        self.draw_graph(f"Road removed between {u} and {v}")
-        self.status.set(f"Road removed: {u} ↔ {v}")
+        if self.G.has_edge(u, v):
+            self.G.remove_edge(u, v)
+            self.draw_graph(f"Road removed {u} ↔ {v}")
 
     # -------------------------------------------------
-    # MST – KRUSKAL
+    # KRUSKAL – MST
     # -------------------------------------------------
     def show_mst(self):
         H = self.active_graph()
-
-        if H.number_of_nodes() < 2:
-            messagebox.showwarning("MST Error", "At least two active nodes required.")
-            return
-
-        messagebox.showinfo(
-            "Kruskal’s Algorithm",
-            "Builds the Minimum Spanning Tree by adding\n"
-            "the smallest edges without forming cycles.\n\n"
-            "Time Complexity: O(E log E)"
-        )
-
         mst = nx.minimum_spanning_tree(H, algorithm="kruskal")
         self.draw_graph("Minimum Spanning Tree (Kruskal)", list(mst.edges()))
-        self.status.set("MST generated using Kruskal’s Algorithm")
 
     # -------------------------------------------------
-    # RELIABLE PATH – DIJKSTRA
+    # DIJKSTRA – SHORTEST PATH
     # -------------------------------------------------
     def reliable_path(self):
         H = self.active_graph()
@@ -280,44 +232,51 @@ class EmergencyNetworkSimulator:
         dst = simpledialog.askstring("Destination", f"Choose from {nodes}")
 
         if src not in nodes or dst not in nodes:
-            messagebox.showerror("Error", "Invalid node selection.")
             return
-
-        messagebox.showinfo(
-            "Dijkstra’s Algorithm",
-            "Finds the shortest path by expanding\n"
-            "the closest unvisited node.\n\n"
-            "Time Complexity: O(E log V)"
-        )
 
         path = nx.shortest_path(H, src, dst, weight="weight")
         edges = [(path[i], path[i + 1]) for i in range(len(path) - 1)]
+        self.draw_graph("Find Reliable Path", edges)
 
-        self.draw_graph("Reliable Path (Dijkstra)", edges)
-        self.status.set(f"Shortest path shown from {src} to {dst}")
+    # -------------------------------------------------
+    # COMMAND HIERARCHY OPTIMIZER – BFS
+    # -------------------------------------------------
+    def command_hierarchy_optimizer(self):
+        H = self.active_graph()
+
+        root = simpledialog.askstring(
+            "Command Root",
+            f"Enter command center (e.g., HQ):\n{list(H.nodes)}"
+        )
+
+        if root not in H:
+            return
+
+        bfs_tree = nx.bfs_tree(H, root)
+        edges = list(bfs_tree.edges())
+
+        levels = nx.single_source_shortest_path_length(H, root)
+        for n, lvl in levels.items():
+            if lvl == 0:
+                self.node_colors[n] = "gold"
+            elif lvl == 1:
+                self.node_colors[n] = "lightgreen"
+            else:
+                self.node_colors[n] = "skyblue"
+
+        self.draw_graph("Optimized  Hierarchy", edges)
 
     # -------------------------------------------------
     # FAILURE SIMULATION
     # -------------------------------------------------
     def simulate_failure(self):
-        node = simpledialog.askstring("Failure", "Enter node to disable:")
-        if node not in self.G:
-            messagebox.showerror("Error", "Node not found.")
-            return
-
-        self.failed_nodes.add(node)
-
-        messagebox.showwarning(
-            "Failure Simulation",
-            f"Node '{node}' is now disabled.\n"
-            "All connected routes are affected."
-        )
-
-        self.draw_graph(f"Node {node} Failed")
-        self.status.set(f"Failure simulated at node {node}")
+        node = simpledialog.askstring("Failure", "Disable node:")
+        if node in self.G:
+            self.failed_nodes.add(node)
+            self.draw_graph(f"Node {node} Failed")
 
     # -------------------------------------------------
-    # GRAPH COLORING (BONUS)
+    # GRAPH COLORING
     # -------------------------------------------------
     def graph_coloring(self):
         coloring = nx.coloring.greedy_color(self.G, strategy="largest_first")
@@ -327,7 +286,6 @@ class EmergencyNetworkSimulator:
             self.node_colors[n] = palette[c % len(palette)]
 
         self.draw_graph("Frequency Assignment (Graph Coloring)")
-        self.status.set("Frequencies assigned using graph coloring")
 
 
 # -------------------------------------------------
