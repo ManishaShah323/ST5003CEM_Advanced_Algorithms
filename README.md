@@ -56,6 +56,6 @@ question, ensuring clear traceability between assignment tasks and implementatio
 
 ## Declaration
 
-This coursework is an original work** completed independently for academic
+This coursework is an original work completed independently for academic
 assessment purposes and complies with the regulations of Softwarica College of
 IT & E-Commerce and Coventry University.
