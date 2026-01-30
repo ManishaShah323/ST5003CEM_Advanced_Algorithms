@@ -1,6 +1,6 @@
 # =========================================================
 # QUESTION 5(a): Interactive Emergency Network Simulator
-# FINAL EXAM-READY VERSION
+# FINAL FULLY IMPROVED & EXAM-READY VERSION
 # =========================================================
 
 import tkinter as tk
@@ -12,6 +12,18 @@ from matplotlib.figure import Figure
 
 
 class EmergencyNetworkSimulator:
+    """
+    Emergency Network Simulator
+    ------------------------------------------------
+    - Cities are represented as nodes
+    - Roads are weighted edges
+    - Supports:
+        • Minimum Spanning Tree (Kruskal)
+        • Shortest Path (Dijkstra)
+        • Failure Simulation
+        • Graph Coloring (Frequency Assignment)
+        • Command Hierarchy Optimizer (BFS Tree)
+    """
 
     def __init__(self, root):
         self.root = root
@@ -24,9 +36,8 @@ class EmergencyNetworkSimulator:
         self.pos = {}
         self.node_colors = {}
 
-        # Status message
-        self.status = tk.StringVar()
-        self.status.set("System Ready")
+        # Status bar
+        self.status = tk.StringVar(value="System Ready")
 
         self.setup_ui()
         self.initialize_network()
@@ -38,7 +49,7 @@ class EmergencyNetworkSimulator:
         main = ttk.Frame(self.root)
         main.pack(fill=tk.BOTH, expand=True)
 
-        # Graph area
+        # Graph canvas
         self.fig = Figure(figsize=(8, 7))
         self.ax = self.fig.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(self.fig, master=main)
@@ -54,48 +65,38 @@ class EmergencyNetworkSimulator:
         ttk.Label(control, text="Network Editing",
                   font=("Arial", 11, "bold")).pack(pady=5)
 
-        ttk.Button(control, text="Create city",
-                   command=self.create_node).pack(fill=tk.X)
-        ttk.Button(control, text="Delete city",
-                   command=self.delete_node).pack(fill=tk.X)
+        ttk.Button(control, text="Create City", command=self.create_node).pack(fill=tk.X)
+        ttk.Button(control, text="Delete City", command=self.delete_node).pack(fill=tk.X)
 
         ttk.Separator(control).pack(fill=tk.X, pady=5)
 
-        ttk.Button(control, text="Add Road",
-                   command=self.add_road).pack(fill=tk.X)
-        ttk.Button(control, text="Remove Road",
-                   command=self.remove_road).pack(fill=tk.X)
+        ttk.Button(control, text="Add Road", command=self.add_road).pack(fill=tk.X)
+        ttk.Button(control, text="Remove Road", command=self.remove_road).pack(fill=tk.X)
 
         ttk.Separator(control).pack(fill=tk.X, pady=5)
 
         ttk.Label(control, text="Analysis Tools",
                   font=("Arial", 11, "bold")).pack(pady=5)
 
-        ttk.Button(control, text="Show MST (Kruskal)",
-                   command=self.show_mst).pack(fill=tk.X)
-        ttk.Button(control, text="Reliable Path (Dijkstra)",
-                   command=self.reliable_path).pack(fill=tk.X)
-        ttk.Button(control, text="Optimize Command Hierarchy (BFS)",
-                   command=self.command_hierarchy_optimizer).pack(fill=tk.X)
+        ttk.Button(control, text="Show MST (Kruskal)", command=self.show_mst).pack(fill=tk.X)
+        ttk.Button(control, text="Reliable Path (Dijkstra)", command=self.reliable_path).pack(fill=tk.X)
 
         ttk.Separator(control).pack(fill=tk.X, pady=5)
 
-        ttk.Button(control, text="Simulate Failure",
-                   command=self.simulate_failure).pack(fill=tk.X)
-        ttk.Button(control, text="Assign Frequencies (Graph Coloring)",
-                   command=self.graph_coloring).pack(fill=tk.X)
+        ttk.Button(control, text="Simulate Failure", command=self.simulate_failure).pack(fill=tk.X)
+        ttk.Button(control, text="Assign Frequencies (Graph Coloring)", command=self.graph_coloring).pack(fill=tk.X)
+
+        ttk.Separator(control).pack(fill=tk.X, pady=5)
+
+        ttk.Button(control, text="Command Hierarchy Optimizer",
+                   command=self.command_hierarchy_optimizer).pack(fill=tk.X)
 
         ttk.Button(control, text="Reset Network",
-                   command=self.initialize_network).pack(fill=tk.X, pady=8)
+                   command=self.initialize_network).pack(fill=tk.X, pady=10)
 
         # Status bar
-        status_bar = ttk.Label(
-            self.root,
-            textvariable=self.status,
-            relief=tk.SUNKEN,
-            anchor="w"
-        )
-        status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+        ttk.Label(self.root, textvariable=self.status,
+                  relief=tk.SUNKEN, anchor="w").pack(side=tk.BOTTOM, fill=tk.X)
 
     # -------------------------------------------------
     # INITIAL NETWORK
@@ -114,11 +115,11 @@ class EmergencyNetworkSimulator:
 
         self.pos = nx.spring_layout(self.G, seed=42)
 
-        for n in self.G.nodes:
-            self.node_colors[n] = "skyblue"
+        for node in self.G.nodes:
+            self.node_colors[node] = "skyblue"
 
-        self.draw_graph("Network Initialized")
-        self.status.set("Network reset to initial state")
+        self.draw_graph("Initial Emergency Network")
+        self.status.set("Network initialized")
 
     # -------------------------------------------------
     # ACTIVE GRAPH
@@ -131,7 +132,7 @@ class EmergencyNetworkSimulator:
     # -------------------------------------------------
     # DRAW GRAPH
     # -------------------------------------------------
-    def draw_graph(self, title, highlight_edges=None):
+    def draw_graph(self, title, highlight_edges=None, info_text=None):
         self.ax.clear()
 
         colors = [
@@ -139,13 +140,11 @@ class EmergencyNetworkSimulator:
             for n in self.G.nodes
         ]
 
-        nx.draw(
-            self.G, self.pos, ax=self.ax,
-            with_labels=True,
-            node_color=colors,
-            node_size=1200,
-            edge_color="gray"
-        )
+        nx.draw(self.G, self.pos, ax=self.ax,
+                with_labels=True,
+                node_color=colors,
+                node_size=1200,
+                edge_color="gray")
 
         nx.draw_networkx_edge_labels(
             self.G, self.pos,
@@ -162,31 +161,53 @@ class EmergencyNetworkSimulator:
                 ax=self.ax
             )
 
+        legend = (
+            "Legend:\n"
+            "Blue : Active City\n"
+            "Red  : Failed City\n"
+            "Green Edge : Path / Tree / MST"
+        )
+
+        if info_text:
+            legend += f"\n\n{info_text}"
+
+        self.ax.text(
+            0.01, 0.01, legend,
+            transform=self.ax.transAxes,
+            fontsize=9,
+            bbox=dict(boxstyle="round", facecolor="white", alpha=0.85)
+        )
+
         self.ax.set_title(title)
         self.canvas.draw()
 
     # -------------------------------------------------
-    # NODE & EDGE OPERATIONS
+    # CREATE NODE
     # -------------------------------------------------
     def create_node(self):
-        node = simpledialog.askstring("Add City", "Enter city name:")
+        node = simpledialog.askstring("Create City", "Enter city name:")
         if not node or node in self.G:
-            messagebox.showerror("Error", "Invalid or duplicate node.")
+            messagebox.showerror("Error", "Invalid or duplicate city.")
             return
 
         self.G.add_node(node)
         self.pos[node] = (random.uniform(-1, 1), random.uniform(-1, 1))
         self.node_colors[node] = "skyblue"
 
-        existing = [n for n in self.G.nodes if n != node]
-        self.G.add_edge(node, random.choice(existing), weight=random.randint(1, 10))
+        if len(self.G.nodes) > 1:
+            other = random.choice([n for n in self.G.nodes if n != node])
+            self.G.add_edge(node, other, weight=random.randint(1, 10))
 
-        self.draw_graph(f"Node {node} Added")
+        self.draw_graph(f"City {node} Added")
+        self.status.set(f"City '{node}' created")
 
+    # -------------------------------------------------
+    # DELETE NODE
+    # -------------------------------------------------
     def delete_node(self):
-        node = simpledialog.askstring("Delete Node", "Enter node name:")
+        node = simpledialog.askstring("Delete City", "Enter city name:")
         if node not in self.G:
-            messagebox.showerror("Error", "Node not found.")
+            messagebox.showerror("Error", "City not found.")
             return
 
         self.G.remove_node(node)
@@ -194,35 +215,71 @@ class EmergencyNetworkSimulator:
         self.node_colors.pop(node, None)
         self.failed_nodes.discard(node)
 
-        self.draw_graph(f"Node {node} Deleted")
-
-    def add_road(self):
-        u = simpledialog.askstring("Add Road", "Source node:")
-        v = simpledialog.askstring("Add Road", "Destination node:")
-        w = simpledialog.askinteger("Add Road", "Weight:")
-
-        if u in self.G and v in self.G and w:
-            self.G.add_edge(u, v, weight=w)
-            self.draw_graph(f"Road added {u} ↔ {v}")
-
-    def remove_road(self):
-        u = simpledialog.askstring("Remove Road", "Source node:")
-        v = simpledialog.askstring("Remove Road", "Destination node:")
-
-        if self.G.has_edge(u, v):
-            self.G.remove_edge(u, v)
-            self.draw_graph(f"Road removed {u} ↔ {v}")
+        self.draw_graph(f"City {node} Deleted")
+        self.status.set(f"City '{node}' deleted")
 
     # -------------------------------------------------
-    # KRUSKAL – MST
+    # ADD ROAD
+    # -------------------------------------------------
+    def add_road(self):
+        u = simpledialog.askstring("Add Road", "Source city:")
+        v = simpledialog.askstring("Add Road", "Destination city:")
+        w = simpledialog.askinteger("Add Road", "Road weight:")
+
+        if not u or not v or w is None:
+            return
+        if u not in self.G or v not in self.G:
+            messagebox.showerror("Error", "Both cities must exist.")
+            return
+
+        self.G.add_edge(u, v, weight=w)
+        self.draw_graph(f"Road Added: {u} ↔ {v}")
+        self.status.set("Road added successfully")
+
+    # -------------------------------------------------
+    # REMOVE ROAD
+    # -------------------------------------------------
+    def remove_road(self):
+        u = simpledialog.askstring("Remove Road", "Source city:")
+        v = simpledialog.askstring("Remove Road", "Destination city:")
+
+        if not self.G.has_edge(u, v):
+            messagebox.showerror("Error", "Road does not exist.")
+            return
+
+        self.G.remove_edge(u, v)
+        self.draw_graph(f"Road Removed: {u} ↔ {v}")
+        self.status.set("Road removed")
+
+    # -------------------------------------------------
+    # MST – KRUSKAL
     # -------------------------------------------------
     def show_mst(self):
         H = self.active_graph()
+        if H.number_of_nodes() < 2:
+            messagebox.showwarning("Error", "Not enough active cities.")
+            return
+
         mst = nx.minimum_spanning_tree(H, algorithm="kruskal")
-        self.draw_graph("Minimum Spanning Tree (Kruskal)", list(mst.edges()))
+        cost = sum(d["weight"] for _, _, d in mst.edges(data=True))
+
+        messagebox.showinfo(
+            "Kruskal's Algorithm",
+            "Builds the Minimum Spanning Tree by\n"
+            "adding the smallest edges without cycles.\n\n"
+            "Time Complexity: O(E log E)"
+        )
+
+        self.draw_graph(
+            "Minimum Spanning Tree (Kruskal)",
+            list(mst.edges()),
+            info_text=f"MST Total Cost = {cost}"
+        )
+
+        self.status.set("MST generated using Kruskal")
 
     # -------------------------------------------------
-    # DIJKSTRA – SHORTEST PATH
+    # DIJKSTRA SHORTEST PATH
     # -------------------------------------------------
     def reliable_path(self):
         H = self.active_graph()
@@ -232,48 +289,45 @@ class EmergencyNetworkSimulator:
         dst = simpledialog.askstring("Destination", f"Choose from {nodes}")
 
         if src not in nodes or dst not in nodes:
+            messagebox.showerror("Error", "Invalid city selection.")
             return
 
-        path = nx.shortest_path(H, src, dst, weight="weight")
+        try:
+            path = nx.shortest_path(H, src, dst, weight="weight")
+            cost = nx.shortest_path_length(H, src, dst, weight="weight")
+        except nx.NetworkXNoPath:
+            messagebox.showwarning("No Path", "No reliable path exists.")
+            return
+
         edges = [(path[i], path[i + 1]) for i in range(len(path) - 1)]
-        self.draw_graph("Find Reliable Path", edges)
 
-    # -------------------------------------------------
-    # COMMAND HIERARCHY OPTIMIZER – BFS
-    # -------------------------------------------------
-    def command_hierarchy_optimizer(self):
-        H = self.active_graph()
-
-        root = simpledialog.askstring(
-            "Command Root",
-            f"Enter command center (e.g., HQ):\n{list(H.nodes)}"
+        messagebox.showinfo(
+            "Dijkstra's Algorithm",
+            "Finds the shortest path by expanding\n"
+            "the closest unvisited node.\n\n"
+            "Time Complexity: O(E log V)"
         )
 
-        if root not in H:
-            return
+        self.draw_graph(
+            "Reliable Path (Dijkstra)",
+            edges,
+            info_text=f"Path Cost = {cost}"
+        )
 
-        bfs_tree = nx.bfs_tree(H, root)
-        edges = list(bfs_tree.edges())
-
-        levels = nx.single_source_shortest_path_length(H, root)
-        for n, lvl in levels.items():
-            if lvl == 0:
-                self.node_colors[n] = "gold"
-            elif lvl == 1:
-                self.node_colors[n] = "lightgreen"
-            else:
-                self.node_colors[n] = "skyblue"
-
-        self.draw_graph("Optimized  Hierarchy", edges)
+        self.status.set(f"Shortest path from {src} to {dst}")
 
     # -------------------------------------------------
     # FAILURE SIMULATION
     # -------------------------------------------------
     def simulate_failure(self):
-        node = simpledialog.askstring("Failure", "Disable node:")
-        if node in self.G:
-            self.failed_nodes.add(node)
-            self.draw_graph(f"Node {node} Failed")
+        node = simpledialog.askstring("Failure", "Enter city to disable:")
+        if node not in self.G:
+            messagebox.showerror("Error", "City not found.")
+            return
+
+        self.failed_nodes.add(node)
+        self.draw_graph(f"City {node} Failed")
+        self.status.set(f"Failure simulated at {node}")
 
     # -------------------------------------------------
     # GRAPH COLORING
@@ -282,10 +336,40 @@ class EmergencyNetworkSimulator:
         coloring = nx.coloring.greedy_color(self.G, strategy="largest_first")
         palette = ["red", "green", "yellow", "orange", "purple"]
 
-        for n, c in coloring.items():
-            self.node_colors[n] = palette[c % len(palette)]
+        for node, color in coloring.items():
+            self.node_colors[node] = palette[color % len(palette)]
 
         self.draw_graph("Frequency Assignment (Graph Coloring)")
+        self.status.set("Frequencies assigned")
+
+    # -------------------------------------------------
+    # COMMAND HIERARCHY OPTIMIZER (BFS)
+    # -------------------------------------------------
+    def command_hierarchy_optimizer(self):
+        H = self.active_graph()
+
+        if "HQ" not in H.nodes:
+            messagebox.showerror("Error", "HQ must exist for command hierarchy.")
+            return
+
+        tree = nx.bfs_tree(H, source="HQ")
+        edges = list(tree.edges())
+
+        messagebox.showinfo(
+            "Command Hierarchy Optimizer",
+            "Optimizes command dissemination using\n"
+            "Breadth-First Search (BFS).\n\n"
+            "Ensures minimum communication depth.\n"
+            "Time Complexity: O(V + E)"
+        )
+
+        self.draw_graph(
+            "Optimized Command Hierarchy (BFS Tree)",
+            highlight_edges=edges,
+            info_text="Root Node: HQ\nStrategy: BFS Hierarchy"
+        )
+
+        self.status.set("Command hierarchy optimized")
 
 
 # -------------------------------------------------
