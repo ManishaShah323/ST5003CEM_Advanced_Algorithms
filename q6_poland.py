@@ -7,231 +7,180 @@ import math
 # =====================================================
 # TASK 6 – GRAPH SEARCH (POLAND MAP)
 # =====================================================
-# Start City: Glogow
-# Goal City : Plock
-#
-# Visualizations:
-# 1. State Space (Map)
-# 2. DFS Search Tree
-# 3. BFS Search Tree
-# 4. A* Search Tree (BONUS)
-# =====================================================
+
+START = "Glogow"
+GOAL = "Plock"
 
 # =====================================================
-# GRAPH (STATE SPACE)
+# STATE SPACE (GRAPH WITH COSTS)
 # =====================================================
-graph = {
-    "Glogow": ["Leszno", "Wroclaw"],
-    "Leszno": ["Glogow", "Poznan", "Kalisz"],
-    "Wroclaw": ["Glogow", "Opole"],
-    "Poznan": ["Leszno", "Bydgoszcz", "Konin"],
-    "Bydgoszcz": ["Poznan", "Wloclawek"],
-    "Wloclawek": ["Bydgoszcz", "Plock"],
-    "Plock": ["Wloclawek", "Warsaw"],
-    "Warsaw": ["Plock", "Lodz", "Radom"],
-    "Radom": ["Warsaw", "Kielce"],
-    "Kielce": ["Radom", "Krakow"],
-    "Krakow": ["Kielce", "Katowice"],
-    "Katowice": ["Krakow", "Czestochowa", "Opole"],
-    "Czestochowa": ["Katowice", "Kalisz"],
-    "Kalisz": ["Leszno", "Lodz", "Czestochowa"],
-    "Lodz": ["Warsaw", "Konin", "Kalisz"],
-    "Konin": ["Poznan", "Lodz"],
-    "Opole": ["Wroclaw", "Katowice"]
-}
-
-start = "Glogow"
-goal = "Plock"
-
-# =====================================================
-# FIXED MAP POSITIONS (USED FOR A* HEURISTIC)
-# =====================================================
-pos_state = {
-    "Glogow": (0,4), "Leszno": (1,5), "Poznan": (2,6), "Bydgoszcz": (3,7),
-    "Wloclawek": (4,6), "Plock": (5,6), "Warsaw": (6,5), "Radom": (6,4),
-    "Kielce": (6,3), "Krakow": (5,2), "Katowice": (4,2),
-    "Czestochowa": (3,3), "Kalisz": (2,4), "Konin": (3,4),
-    "Lodz": (4,4), "Wroclaw": (0,3), "Opole": (1,3)
+GRAPH = {
+    "Glogow": {"Leszno": 45, "Wroclaw": 40},
+    "Leszno": {"Glogow": 45, "Poznan": 90, "Kalisz": 140},
+    "Wroclaw": {"Glogow": 40, "Opole": 80},
+    "Poznan": {"Leszno": 90, "Bydgoszcz": 110, "Konin": 120},
+    "Bydgoszcz": {"Poznan": 110, "Wloclawek": 100},
+    "Wloclawek": {"Bydgoszcz": 100, "Plock": 55},
+    "Plock": {"Wloclawek": 55, "Warsaw": 130},
+    "Warsaw": {"Plock": 130, "Lodz": 150, "Radom": 105},
+    "Radom": {"Warsaw": 105, "Kielce": 82},
+    "Kielce": {"Radom": 82, "Krakow": 120},
+    "Krakow": {"Kielce": 120, "Katowice": 85},
+    "Katowice": {"Krakow": 85, "Czestochowa": 68, "Opole": 118},
+    "Czestochowa": {"Katowice": 68, "Kalisz": 160},
+    "Kalisz": {"Leszno": 140, "Lodz": 128, "Czestochowa": 160},
+    "Lodz": {"Warsaw": 150, "Konin": 120, "Kalisz": 128},
+    "Konin": {"Poznan": 120, "Lodz": 120},
+    "Opole": {"Wroclaw": 80, "Katowice": 118}
 }
 
 # =====================================================
-# HELPER: PATH RECONSTRUCTION
+# NODE POSITIONS (FOR HEURISTIC)
+# =====================================================
+POS = {
+    "Glogow": (0,4), "Leszno": (1,5), "Poznan": (2,6),
+    "Bydgoszcz": (3,7), "Wloclawek": (4,6), "Plock": (5,6),
+    "Warsaw": (6,5), "Radom": (6,4), "Kielce": (6,3),
+    "Krakow": (5,2), "Katowice": (4,2), "Czestochowa": (3,3),
+    "Kalisz": (2,4), "Konin": (3,4), "Lodz": (4,4),
+    "Wroclaw": (0,3), "Opole": (1,3)
+}
+
+# =====================================================
+# PATH RECONSTRUCTION
 # =====================================================
 def reconstruct_path(parent, start, goal):
+    if goal not in parent:
+        return []
     path = []
-    node = goal
-    while node is not None:
-        path.append(node)
-        node = parent.get(node)
+    cur = goal
+    while cur is not None:
+        path.append(cur)
+        cur = parent[cur]
     return path[::-1]
 
 # =====================================================
-# DFS SEARCH
+# DFS (STACK, FIRST-GOAL TERMINATION)
 # =====================================================
 def dfs_search(graph, start, goal):
-    stack = [start]
-    visited = set()
+    stack = [(start, 0)]
+    closed = set()
     parent = {start: None}
     edges = []
 
     while stack:
-        node = stack.pop()
-        if node == goal:
-            break
-        if node not in visited:
-            visited.add(node)
-            for nbr in reversed(graph[node]):
-                if nbr not in visited:
-                    parent[nbr] = node
-                    edges.append((node, nbr))
-                    stack.append(nbr)
+        node, cost = stack.pop()
 
-    return edges, reconstruct_path(parent, start, goal)
+        if node == goal:
+            return edges, reconstruct_path(parent, start, goal), cost
+
+        if node in closed:
+            continue
+
+        closed.add(node)
+
+        # reverse sorted → deterministic DFS order
+        for nbr, w in sorted(graph[node].items(), reverse=True):
+            if nbr not in closed:
+                parent[nbr] = node
+                edges.append((node, nbr))
+                stack.append((nbr, cost + w))
+
+    return edges, [], float("inf")
 
 # =====================================================
-# BFS SEARCH
+# BFS (QUEUE, LEVEL-ORDER SEARCH)
 # =====================================================
 def bfs_search(graph, start, goal):
-    queue = deque([start])
-    visited = {start}
+    queue = deque([(start, 0)])
+    closed = {start}
     parent = {start: None}
     edges = []
 
     while queue:
-        node = queue.popleft()
+        node, cost = queue.popleft()
+
         if node == goal:
-            break
-        for nbr in graph[node]:
-            if nbr not in visited:
-                visited.add(nbr)
+            return edges, reconstruct_path(parent, start, goal), cost
+
+        for nbr, w in sorted(graph[node].items()):
+            if nbr not in closed:
+                closed.add(nbr)
                 parent[nbr] = node
                 edges.append((node, nbr))
-                queue.append(nbr)
+                queue.append((nbr, cost + w))
 
-    return edges, reconstruct_path(parent, start, goal)
+    return edges, [], float("inf")
 
 # =====================================================
-# A* SEARCH
+# A* SEARCH (OPTIMAL COST)
 # =====================================================
 def heuristic(a, b):
-    x1, y1 = pos_state[a]
-    x2, y2 = pos_state[b]
-    return math.dist((x1, y1), (x2, y2))
+    return math.dist(POS[a], POS[b])
 
 def a_star_search(graph, start, goal):
-    open_set = []
-    heapq.heappush(open_set, (0, start))
+    open_heap = [(heuristic(start, goal), start)]
     parent = {start: None}
     g_cost = {start: 0}
+    closed = set()
     edges = []
 
-    while open_set:
-        _, current = heapq.heappop(open_set)
+    while open_heap:
+        _, node = heapq.heappop(open_heap)
 
-        if current == goal:
-            break
+        if node == goal:
+            return edges, reconstruct_path(parent, start, goal), g_cost[node]
 
-        for nbr in graph[current]:
-            tentative_g = g_cost[current] + 1
+        if node in closed:
+            continue
+
+        closed.add(node)
+
+        for nbr, w in graph[node].items():
+            tentative_g = g_cost[node] + w
             if nbr not in g_cost or tentative_g < g_cost[nbr]:
                 g_cost[nbr] = tentative_g
-                f_cost = tentative_g + heuristic(nbr, goal)
-                heapq.heappush(open_set, (f_cost, nbr))
-                parent[nbr] = current
-                edges.append((current, nbr))
+                f = tentative_g + heuristic(nbr, goal)
+                heapq.heappush(open_heap, (f, nbr))
+                parent[nbr] = node
+                edges.append((node, nbr))
 
-    return edges, reconstruct_path(parent, start, goal)
-
-# =====================================================
-# RUN SEARCHES + TERMINAL OUTPUT
-# =====================================================
-dfs_edges, dfs_path = dfs_search(graph, start, goal)
-bfs_edges, bfs_path = bfs_search(graph, start, goal)
-astar_edges, astar_path = a_star_search(graph, start, goal)
-
-print("\nDFS Final Path:")
-print(" -> ".join(dfs_path))
-
-print("\nBFS Final Path:")
-print(" -> ".join(bfs_path))
-
-print("\nA* Final Path:")
-print(" -> ".join(astar_path))
+    return edges, [], float("inf")
 
 # =====================================================
-# VISUALIZATION 1: STATE SPACE GRAPH
+# RUN SEARCHES
+# =====================================================
+dfs_edges, dfs_path, dfs_cost = dfs_search(GRAPH, START, GOAL)
+bfs_edges, bfs_path, bfs_cost = bfs_search(GRAPH, START, GOAL)
+astar_edges, astar_path, astar_cost = a_star_search(GRAPH, START, GOAL)
+
+print("\nDFS Path :", " -> ".join(dfs_path), "| Cost:", dfs_cost)
+print("BFS Path :", " -> ".join(bfs_path), "| Cost:", bfs_cost)
+print("A*  Path :", " -> ".join(astar_path), "| Cost:", astar_cost)
+
+# =====================================================
+# VISUALIZATION: STATE SPACE
 # =====================================================
 G = nx.Graph()
-for n in graph:
-    for nbr in graph[n]:
-        G.add_edge(n, nbr)
+for u in GRAPH:
+    for v, w in GRAPH[u].items():
+        G.add_edge(u, v, weight=w)
 
-plt.figure(figsize=(12,8))
+plt.figure(figsize=(12, 8))
 nx.draw(
-    G, pos_state,
-    with_labels=True,
-    node_color=["skyblue" if n == start else "red" if n == goal else "lightgray" for n in G.nodes()],
-    node_size=1700,
+    G, POS, with_labels=True,
+    node_color=[
+        "skyblue" if n == START else
+        "red" if n == GOAL else
+        "lightgray" for n in G.nodes()
+    ],
+    node_size=1600,
     edgecolors="black"
 )
-plt.title("Visualization 1: State Space Graph (Map)", fontweight="bold")
-plt.axis("off")
-plt.show()
-
-# =====================================================
-# HELPER: TREE LAYOUT (LEVEL-WISE)
-# =====================================================
-def tree_layout(edges, root):
-    levels = {root: 0}
-    for u, v in edges:
-        levels[v] = levels[u] + 1
-
-    pos = {}
-    x_offset = {}
-    for node, lvl in levels.items():
-        x_offset.setdefault(lvl, 0)
-        pos[node] = (x_offset[lvl], -lvl)
-        x_offset[lvl] += 1
-    return pos
-
-# =====================================================
-# VISUALIZATION 2: DFS TREE
-# =====================================================
-DFS = nx.DiGraph(dfs_edges)
-pos_dfs = tree_layout(dfs_edges, start)
-
-plt.figure(figsize=(10,8))
-nx.draw(DFS, pos_dfs, with_labels=True,
-        node_color="lightyellow", node_size=1600,
-        edgecolors="black", arrows=True)
-plt.title("Visualization 2: DFS Search Tree", fontweight="bold")
-plt.axis("off")
-plt.show()
-
-# =====================================================
-# VISUALIZATION 3: BFS TREE
-# =====================================================
-BFS = nx.DiGraph(bfs_edges)
-pos_bfs = tree_layout(bfs_edges, start)
-
-plt.figure(figsize=(10,8))
-nx.draw(BFS, pos_bfs, with_labels=True,
-        node_color="lightgreen", node_size=1600,
-        edgecolors="black", arrows=True)
-plt.title("Visualization 3: BFS Search Tree", fontweight="bold")
-plt.axis("off")
-plt.show()
-
-# =====================================================
-# VISUALIZATION 4: A* SEARCH TREE (BONUS)
-# =====================================================
-ASTAR = nx.DiGraph(astar_edges)
-pos_astar = tree_layout(astar_edges, start)
-
-plt.figure(figsize=(10,8))
-nx.draw(ASTAR, pos_astar, with_labels=True,
-        node_color="lightblue", node_size=1600,
-        edgecolors="black", arrows=True)
-plt.title("Visualization 4: A* Search Tree (Heuristic Guided)", fontweight="bold")
+nx.draw_networkx_edge_labels(
+    G, POS,
+    edge_labels={(u, v): d["weight"] for u, v, d in G.edges(data=True)}
+)
+plt.title("State Space Graph (Poland Map)", fontweight="bold")
 plt.axis("off")
 plt.show()
